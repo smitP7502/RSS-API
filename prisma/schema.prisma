@@ -1,0 +1,104 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Member {
+  id String @id @default(cuid())
+
+  name    String
+  mobile  String?
+  email   String?
+  address String?
+  dob     DateTime? @db.Date
+  role    String    @default("user")
+
+  shakha ShakhaMember[]
+
+  credential MemberCredential?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+}
+
+model Shakha {
+  id String @id @default(cuid())
+
+  name          String
+  location      String
+  establishDate DateTime? @db.Date
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+
+  members ShakhaMember[]
+}
+
+model ShakhaMember {
+  id String @id @default(cuid())
+
+  shakhaId String
+  shakha   Shakha @relation(fields: [shakhaId], references: [id])
+
+  memberId String
+  member   Member @relation(fields: [memberId], references: [id])
+
+  isActive Boolean?
+
+  joiningDate DateTime? @db.Date
+  leavingDate DateTime? @db.Date
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+
+  roles MemberRole[]
+}
+
+model Role {
+  id Int @id @default(autoincrement())
+
+  role String @unique
+
+  memberRole MemberRole[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+}
+
+model MemberRole {
+  id String @id @default(cuid())
+
+  roleId Int
+  role   Role @relation(fields: [roleId], references: [id])
+
+  memberId String
+  member   ShakhaMember @relation(fields: [memberId], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+
+  @@unique([roleId, memberId])
+}
+
+model MemberCredential {
+  id       String @id @default(cuid())
+  userName String @unique()
+
+  memberId String @unique
+  member   Member @relation(fields: [memberId], references: [id])
+
+  password   String
+  firstLogin Boolean @default(true)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+}
