@@ -10,12 +10,11 @@ const router = Router();
 
 router.use(authenticate);
 router.get("/get", asyncHandler(RoleController.getAll));
-router.get("/get/:id", asyncHandler(RoleController.getById));
+// router.get("/get/:id", asyncHandler(RoleController.getById));
 
-router.use(authorize("admin"));
+router.use(authorize("ADMIN"));
 router.post("/add", validate(AddRoleSchema), asyncHandler(RoleController.add));
 router.patch("/update/:id", validate(AddRoleSchema), asyncHandler(RoleController.update));
-router.delete("/delete/:id", asyncHandler(RoleController.delete)
-);
+router.delete("/delete/:id", asyncHandler(RoleController.delete));
 
 export default router;

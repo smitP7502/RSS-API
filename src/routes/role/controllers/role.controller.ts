@@ -3,13 +3,14 @@ import { AddRole } from "../schema/role.schema";
 import prisma from "../../../lib/prisma";
 import { AppError } from "../../../lib/errors";
 import { sendSuccess } from "../../../lib/response";
+import filterData from "../../../utils/filter_data";
 
 export class RoleController {
     static add = async (req: Request, res: Response) => {
         const { name } = req.body as AddRole;
 
-        const roleExist = await prisma.role.findUnique({
-            where: { role: name }
+        const roleExist = await prisma.role.findFirst({
+            where: { name, isActive: true }
         });
 
         if (roleExist) {
@@ -17,7 +18,7 @@ export class RoleController {
         }
 
         const newRole = await prisma.role.create({
-            data: { role: name }
+            data: { name }
         });
 
         sendSuccess(res, newRole, "Role added successfully!");
@@ -25,6 +26,9 @@ export class RoleController {
 
     static getAll = async (_req: Request, res: Response) => {
         const roles = await prisma.role.findMany({
+            where: {
+                isActive: true
+            },
             orderBy: {
                 createdAt: "desc"
             }
@@ -37,23 +41,23 @@ export class RoleController {
         sendSuccess(res, updatedRoles, "Roles fetched successfully!");
     }
 
-    static getById = async (req: Request, res: Response) => {
-        const id = Number(req.params.id);
+    // static getById = async (req: Request, res: Response) => {
+    //     const id = Number(req.params.id);
 
-        if (isNaN(id)) {
-            throw new AppError("Invalid role id!", 400);
-        }
+    //     if (isNaN(id)) {
+    //         throw new AppError("Invalid role id!", 400);
+    //     }
 
-        const role = await prisma.role.findUnique({
-            where: { id }
-        });
+    //     const role = await prisma.role.findUnique({
+    //         where: { id }
+    //     });
 
-        if (!role) {
-            throw new AppError("Role not found!", 404);
-        }
+    //     if (!role) {
+    //         throw new AppError("Role not found!", 404);
+    //     }
 
-        sendSuccess(res, role, "Role fetched successfully!");
-    }
+    //     sendSuccess(res, role, "Role fetched successfully!");
+    // }
 
     static update = async (req: Request, res: Response) => {
         const id = Number(req.params.id);
@@ -63,8 +67,8 @@ export class RoleController {
             throw new AppError("Invalid role id!", 400);
         }
 
-        const role = await prisma.role.findUnique({
-            where: { id }
+        const role = await prisma.role.findFirst({
+            where: { id, isActive: true }
         });
 
         if (!role) {
@@ -73,10 +77,11 @@ export class RoleController {
 
         const roleExist = await prisma.role.findFirst({
             where: {
-                role: name,
+                name,
                 NOT: {
                     id
-                }
+                },
+                isActive: true
             }
         });
 
@@ -85,9 +90,9 @@ export class RoleController {
         }
 
         const updatedRole = await prisma.role.update({
-            where: { id },
+            where: { id, isActive: true },
             data: {
-                role: name
+                name
             }
         });
 
@@ -102,16 +107,36 @@ export class RoleController {
         }
 
         const role = await prisma.role.findUnique({
-            where: { id }
+            where: { id, isActive: true }
         });
 
         if (!role) {
             throw new AppError("Role not found!", 404);
         }
 
-        await prisma.role.delete({
-            where: { id }
-        });
+        const memberRoles = await prisma.memberRole.findMany();
+
+        const ids = memberRoles
+            .filter(e => e.roleId === role.id)
+            .map(e => e.id);
+
+        await prisma.$transaction([
+            prisma.memberRole.updateMany({
+                where: {
+                    revokedAt: null,
+                    id: { in: ids }
+                },
+                data: {
+                    revokedAt: new Date()
+                }
+            }),
+            prisma.role.update({
+                where: { id, isActive: true },
+                data: {
+                    isActive: false
+                }
+            }),
+        ]);
 
         sendSuccess(res, null, "Role deleted successfully!");
     }

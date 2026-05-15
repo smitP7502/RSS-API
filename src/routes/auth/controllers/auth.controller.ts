@@ -38,7 +38,7 @@ export class AuthController {
         }
 
         const token = jwt.sign(
-            { id: memberCred.memberId, role: member.role },
+            { id: memberCred.memberId, role: member.systemRole },
             process.env.JWT_SECRET as string
         );
 
@@ -49,12 +49,12 @@ export class AuthController {
                 userName: memberCred.userName,
                 name: member.name,
                 email: member.email,
-                isAdmin: member.role === "admin" ? 1 : 0
+                isAdmin: member.systemRole === "ADMIN" ? 1 : 0
             }
         }, "Login successfully!");
     }
 
-    static resetPassword = async (req: Request, res: Response) => {
+    static changePassword = async (req: Request, res: Response) => {
         const { password } = req.body as ResetPwd;
 
         const memberId = req.user?.id;
@@ -69,8 +69,6 @@ export class AuthController {
                     memberId: memberId
                 }
             });
-
-        console.log(memberId);
 
         if (!memberCred) {
             throw new AppError(
@@ -95,9 +93,51 @@ export class AuthController {
 
         sendSuccess(
             res,
-            {
-                id: updatedCredential.id
-            },
+            null,
+            "Password changed successfully!"
+        );
+    }
+
+    static reset = async (req: Request, res: Response) => {
+        const id = req.params.id as string;
+
+        if (!id) {
+            throw new AppError("Member id is required", 400);
+        }
+
+        const { password } = req.body as ResetPwd;
+
+        const memberCred =
+            await prisma.memberCredential.findUnique({
+                where: {
+                    memberId: id
+                }
+            });
+
+        if (!memberCred) {
+            throw new AppError(
+                "Member credential not found!",
+                404
+            );
+        }
+
+        const hashedPassword =
+            await bcrypt.hash(password, 10);
+
+        const updatedCredential =
+            await prisma.memberCredential.update({
+                where: {
+                    memberId: id
+                },
+                data: {
+                    password: hashedPassword,
+                    firstLogin: true
+                }
+            });
+
+        sendSuccess(
+            res,
+            null,
             "Password reset successfully!"
         );
     }

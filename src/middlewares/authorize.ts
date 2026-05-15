@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express"
-import { SystemUserRole } from "../constant/roles";
+import { MemberSystemRole } from "../generated/prisma/enums";
 
-export const authorize = (role: SystemUserRole) => async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const authorize = (role: MemberSystemRole) => async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const userRole = req.user?.role;
 
     if (userRole !== role) {

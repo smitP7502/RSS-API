@@ -31,7 +31,7 @@ app.get("/health", (req: Request, res: Response) => {
 app.use("/auth", authRouter);
 app.use("/shakha", shakhaRouter);
 app.use("/member", memberRouter);
-app.use("/shakha-member", shakhaMemberRouter);
+app.use("/shakha-members", shakhaMemberRouter);
 app.use("/member-roles", memberRoleRouter);
 app.use("/roles", roleRouter);
 
@@ -51,8 +51,9 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
     sendError(res, err.message, 500);
 });
 
-const PORT = process.env.PORT ?? 3000;
+const PORT: number = Number(process.env.PORT) || 3000;
+const HOST: string = '0.0.0.0';
 
-app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+app.listen(PORT, HOST, () => {
+    console.log(`Server is running on http://10.48.170.197:${PORT}`);
 });

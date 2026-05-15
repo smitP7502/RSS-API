@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const RegisterMemberSchema = z.object({
     name: z.string().min(3, "Name must be 3 character long"),
-    mobileNo: z.string().optional(),
+    mobile: z.string().optional(),
     address: z.string().optional(),
     dob: z.coerce.date().optional(),
     email: z.email().optional(),
@@ -13,7 +13,7 @@ export const RegisterMemberSchema = z.object({
 
 export const UpdateMemberSchema = z.object({
     name: z.string().min(3, "Name must be 3 character long"),
-    mobileNo: z.string().optional(),
+    mobile: z.string().optional(),
     email: z.email().optional(),
     address: z.string().optional(),
     dob: z.coerce.date().optional(),

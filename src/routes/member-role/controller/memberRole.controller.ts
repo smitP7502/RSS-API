@@ -40,7 +40,7 @@ export class MemberRoleController {
         const newMemberRole = await prisma.memberRole.create({
             data: {
                 roleId: body.roleId,
-                memberId: shakhaMember.id
+                shakhaMemberId: shakhaMember.id
             }
         });
 

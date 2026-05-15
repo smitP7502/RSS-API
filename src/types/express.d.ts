@@ -1,7 +1,8 @@
+import { MemberSystemRole } from "../generated/prisma/enums";
 
 export interface AuthUser {
     id: string;
-    role: SystemUserRole;
+    role: MemberSystemRole;
 }
 
 declare global {

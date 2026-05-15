@@ -12,35 +12,50 @@ datasource db {
   provider = "postgresql"
 }
 
-model Member {
-  id String @id @default(cuid())
+enum MemberSystemRole {
+  SUPER_ADMIN
+  ADMIN
+  OPERATOR
+  USER
+}
 
-  name    String
-  mobile  String?
-  email   String?
-  address String?
-  dob     DateTime? @db.Date
-  role    String    @default("user")
+enum ShakhaType {
+  PRABHAT
+  SAYAM
+}
 
-  shakha ShakhaMember[]
+model Shakha {
+  id            String      @id @default(cuid())
+  name          String
+  establishDate DateTime?   @db.Date
+  isActive      Boolean     @default(true)
+  shakhaType    ShakhaType?
+  timing        DateTime?   @db.Time
+  location      String
+  locationLat   String?
+  locationLong  String?
 
-  credential MemberCredential?
+  shakhaMember ShakhaMember[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt
 }
 
-model Shakha {
-  id String @id @default(cuid())
+model Member {
+  id         String           @id @default(cuid())
+  name       String
+  mobile     String?
+  email      String?
+  address    String?
+  dob        DateTime?        @db.Date
+  isActive   Boolean          @default(true)
+  systemRole MemberSystemRole @default(USER)
 
-  name          String
-  location      String
-  establishDate DateTime? @db.Date
+  shakhaMember ShakhaMember[]
+  credential   MemberCredential?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt
-
-  members ShakhaMember[]
 }
 
 model ShakhaMember {
@@ -52,21 +67,21 @@ model ShakhaMember {
   memberId String
   member   Member @relation(fields: [memberId], references: [id])
 
-  isActive Boolean?
+  memberRole MemberRole[]
 
+  isActive    Boolean   @default(true)
   joiningDate DateTime? @db.Date
   leavingDate DateTime? @db.Date
 
   createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt
-
-  roles MemberRole[]
 }
 
 model Role {
-  id Int @id @default(autoincrement())
-
-  role String @unique
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
+  description String?
+  isActive    Boolean @default(true)
 
   memberRole MemberRole[]
 
@@ -80,13 +95,21 @@ model MemberRole {
   roleId Int
   role   Role @relation(fields: [roleId], references: [id])
 
-  memberId String
-  member   ShakhaMember @relation(fields: [memberId], references: [id])
+  shakhaMemberId String
+  shakhaMember   ShakhaMember @relation(fields: [shakhaMemberId], references: [id])
+
+  assignedAt DateTime  @default(now())
+  revokedAt  DateTime?
+
+  canAddMember    Boolean @default(false)
+  canRemoveMember Boolean @default(false)
+  canEditMember   Boolean @default(false)
+  canAssignRole   Boolean @default(false)
+  canViewAll      Boolean @default(true)
+  isActive        Boolean @default(true)
 
   createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt
-
-  @@unique([roleId, memberId])
 }
 
 model MemberCredential {

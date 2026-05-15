@@ -4,6 +4,7 @@ import { AppError } from '../../../lib/errors';
 import prisma from '../../../lib/prisma';
 import { sendSuccess } from '../../../lib/response';
 import { RegisterMember, UpdateMember } from '../schema/member.schema';
+import filterData from '../../../utils/filter_data';
 
 export class MemberController {
     static register = async (req: Request, res: Response) => {
@@ -25,38 +26,44 @@ export class MemberController {
             throw new AppError("Username already exists!", 409);
         }
 
-        const member = await prisma.member.create({
-            data: {
-                name: body.name,
-                mobile: body.mobileNo,
-                email: body.email,
-                dob: body.dob === undefined ? null : new Date(body.dob),
-                address: body.address
-            }
+        const newMember = await prisma.$transaction(async (tx) => {
+            const member = await prisma.member.create({
+                data: {
+                    name: body.name,
+                    mobile: body.mobile,
+                    email: body.email,
+                    dob: body.dob === undefined ? null : new Date(body.dob),
+                    address: body.address
+                }
+            });
+
+            const hashedPwd = await bcrypt.hash(body.password, 10);
+
+            await prisma.memberCredential.create({
+                data: {
+                    userName: body.userName,
+                    password: hashedPwd,
+                    memberId: member.id,
+                }
+            });
+
+            await prisma.shakhaMember.create({
+                data: {
+                    shakhaId: shakha.id,
+                    memberId: member.id,
+                }
+            });
+
+            console.log(member);
+
+            return member;
         });
 
-        const hashedPwd = await bcrypt.hash(body.password, 10);
-
-        await prisma.memberCredential.create({
-            data: {
-                userName: body.userName,
-                password: hashedPwd,
-                memberId: member.id,
-            }
-        });
-
-        await prisma.shakhaMember.create({
-            data: {
-                shakhaId: shakha.id,
-                memberId: member.id,
-            }
-        });
-
-        sendSuccess(res, member, "Registered successfully!");
+        sendSuccess(res, newMember, "Registered successfully!");
     }
 
     static getAll = async (req: Request, res: Response) => {
-        const members = await prisma.member.findMany();
+        const members = await prisma.member.findMany({ where: { isActive: true } });
 
         sendSuccess(res, members, "Members fetched successfully!");
     }
@@ -69,7 +76,7 @@ export class MemberController {
         }
 
         const shakhaExist = await prisma.shakha.findUnique({
-            where: { id }
+            where: { id, isActive: true }
         });
 
         if (!shakhaExist) {
@@ -77,7 +84,7 @@ export class MemberController {
         }
 
         const shakhaMembers = await prisma.shakhaMember.findMany({
-            where: { shakhaId: id },
+            where: { shakhaId: id, isActive: true },
             select: {
                 member: true,
             },
@@ -85,7 +92,9 @@ export class MemberController {
 
         const members = shakhaMembers.map(item => item.member);
 
-        sendSuccess(res, members, "Members fetched successfully!");
+        const data = members.map(e => filterData(e));
+
+        sendSuccess(res, data, "Members fetched successfully!");
     }
 
     static updateMember = async (req: Request, res: Response) => {
@@ -96,8 +105,8 @@ export class MemberController {
             throw new AppError("Id is required", 400);
         }
 
-        const member = await prisma.member.findUnique({
-            where: { id }
+        const member = await prisma.member.findMany({
+            where: { id, isActive: true }
         });
 
         if (!member) {
@@ -110,13 +119,99 @@ export class MemberController {
                 name: body.name,
                 address: body.address,
                 dob: body.dob === undefined ? null : new Date(body.dob),
-                mobile: body.mobileNo,
+                mobile: body.mobile,
                 email: body.email,
             }
         });
 
-        const { createdAt, updatedAt, ...data } = updatedMember;
+        sendSuccess(res, filterData(updatedMember), "Member updated successfully");
+    }
 
-        sendSuccess(res, data, "Member updated successfully");
+    static deleteMember = async (req: Request, res: Response) => {
+        const id = req.params.id as string;
+
+        if (!id) {
+            throw new AppError("Id is required", 400);
+        }
+
+        const memberExist = await prisma.member.findUnique({
+            where: { id }
+        });
+
+        if (!memberExist) {
+            throw new AppError("Member does not exist!", 404);
+        }
+
+        const roles = await prisma.memberRole.findMany({
+            where: { shakhaMemberId: id, isActive: true },
+            select: { id: true }
+        });
+
+        const ids = roles.map(e => e.id);
+
+        await prisma.$transaction([
+            prisma.memberRole.updateMany({
+                where: { id: { in: ids }, revokedAt: null },
+                data: {
+                    revokedAt: new Date(),
+                }
+            }),
+
+            prisma.shakhaMember.updateMany({
+                where: { memberId: id, isActive: true },
+                data: {
+                    isActive: false,
+                }
+            }),
+
+            prisma.member.updateMany({
+                where: { id: id, isActive: true },
+                data: {
+                    isActive: false,
+                }
+            }),
+        ]);
+
+        sendSuccess(res, null, "Member deleted successfully!");
+    }
+
+    static getMemberData = async (req: Request, res: Response) => {
+        const memberId = req.user?.id;
+
+        const member = await prisma.member.findUnique({
+            where: { id: memberId, isActive: true }
+        });
+
+        if (!member) {
+            throw new AppError("Member does not exist!", 404);
+        }
+
+        sendSuccess(res, filterData(member), "Data fetched successfully!");
+    }
+
+    static updateMemberData = async (req: Request, res: Response) => {
+        const memberId = req.user?.id;
+        const data: UpdateMember = req.body;
+
+        const member = await prisma.member.findUnique({
+            where: { id: memberId, isActive: true }
+        });
+
+        if (!member) {
+            throw new AppError("Member does not exist!", 404);
+        }
+
+        const updatedMember = await prisma.member.update({
+            where: { id: memberId, isActive: true },
+            data: {
+                name: data.name,
+                mobile: data.mobile,
+                dob: data.dob,
+                email: data.email,
+                address: data.address,
+            }
+        });
+
+        sendSuccess(res, filterData(updatedMember), "Data updated successfully!");
     }
 }
