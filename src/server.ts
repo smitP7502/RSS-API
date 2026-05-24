@@ -1,6 +1,4 @@
-import "dotenv/config"
 import express, { NextFunction, Request, Response } from 'express';
-import swaggerUi from "swagger-ui-express";
 import authRouter from './routes/auth/routes/auth';
 import { AppError } from "./lib/errors";
 import { sendError } from "./lib/response";
@@ -11,6 +9,7 @@ import memberRouter from './routes/member/routes/member';
 import shakhaMemberRouter from './routes/shakha-member/routes/shakhaMember';
 import memberRoleRouter from './routes/member-role/routes/memberRole';
 import roleRouter from './routes/role/routes/role';
+import { ENV } from "./config/env";
 
 validateEnv();
 
@@ -51,9 +50,13 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
     sendError(res, err.message, 500);
 });
 
-const PORT: number = Number(process.env.PORT) || 3000;
-const HOST: string = '0.0.0.0';
+const PORT: number = Number(ENV.PORT) || 3000;
 
-app.listen(PORT, HOST, () => {
-    console.log(`Server is running on http://10.25.11.197:${PORT}`);
+app.listen(PORT, () => {
+
+    if (ENV.IS_PRODUCTION) {
+        console.log("Running production server on port ", PORT);
+    } else {
+        console.log(`Running development server on http://10.25.11.197:${PORT}`);
+    }
 });
