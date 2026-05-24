@@ -6,7 +6,8 @@ export const checkPermission = (permission: string) => async (req: Request, res:
     const memberId = req.user?.id;
 
     if (req.user?.role === "ADMIN") {
-        next(res);
+        next();
+        return;
     }
 
     if (!memberId) {
