@@ -3,8 +3,9 @@ import { Request, Response } from "express";
 import { AppError } from '../../../lib/errors';
 import prisma from '../../../lib/prisma';
 import { sendSuccess } from '../../../lib/response';
-import { RegisterMember, UpdateMember } from '../schema/member.schema';
+import { CreateRegisterMemberShaka, RegisterMember, UpdateMember } from '../schema/member.schema';
 import filterData from '../../../utils/filter_data';
+import { email } from 'zod';
 
 export class MemberController {
     static register = async (req: Request, res: Response) => {
@@ -54,12 +55,10 @@ export class MemberController {
                 }
             });
 
-            console.log(member);
-
             return member;
         });
 
-        sendSuccess(res, newMember, "Registered successfully!");
+        sendSuccess(res, filterData(newMember), "Registered successfully!");
     }
 
     static getAll = async (req: Request, res: Response) => {
@@ -178,20 +177,57 @@ export class MemberController {
     static getMemberData = async (req: Request, res: Response) => {
         const memberId = req.user?.id;
 
-        const member = await prisma.member.findUnique({
-            where: { id: memberId, isActive: true }
+        const shakhaMember = await prisma.shakhaMember.findFirst({
+            where: { memberId, isActive: true },
+            select: {
+                member: {
+                    select: {
+                        id: true,
+                        name: true,
+                        dob: true,
+                        email: true,
+                        mobile: true,
+                        address: true,
+                    }
+                },
+                shakha: {
+                    select: { name: true }
+                },
+                memberRole: {
+                    where: { revokedAt: null },
+                    select: {
+                        role: true,
+                    },
+                    take: 1,
+                },
+            }
         });
 
-        if (!member) {
-            throw new AppError("Member does not exist!", 404);
+        if (!shakhaMember) {
+            throw new AppError("You are not part of any shakha", 404);
         }
 
-        sendSuccess(res, filterData(member), "Data fetched successfully!");
+        const data = {
+            id: shakhaMember.member.id,
+            name: shakhaMember.member.name,
+            dob: shakhaMember.member.dob,
+            email: shakhaMember.member.email,
+            mobile: shakhaMember.member.mobile,
+            address: shakhaMember.member.address,
+            shakhaName: shakhaMember.shakha.name,
+            role: shakhaMember.memberRole[0]?.role.name ?? null,
+        };
+
+        sendSuccess(res, data, "Data fetched successfully!");
     }
 
     static updateMemberData = async (req: Request, res: Response) => {
-        const memberId = req.user?.id;
+        const memberId = req.params.id as string;
         const data: UpdateMember = req.body;
+
+        if (!memberId) {
+            throw new AppError("Member not found", 404);
+        }
 
         const member = await prisma.member.findUnique({
             where: { id: memberId, isActive: true }
@@ -206,12 +242,61 @@ export class MemberController {
             data: {
                 name: data.name,
                 mobile: data.mobile,
-                dob: data.dob,
+                dob: data.dob === undefined ? null : new Date(data.dob),
                 email: data.email,
                 address: data.address,
             }
         });
 
         sendSuccess(res, filterData(updatedMember), "Data updated successfully!");
+    }
+
+    static createRegisterMemberShaka = async (req: Request, res: Response) => {
+        const body: CreateRegisterMemberShaka = req.body;
+        const { shakhaId, memberId } = res.locals;
+
+        const shakhaMemberData = await prisma.shakhaMember.findFirst({
+            where: { memberId: memberId, isActive: true },
+        });
+
+        if (!shakhaMemberData) {
+            throw new AppError("Member is not part of shakha", 404);
+        }
+
+        const result = await prisma.$transaction(async (tx) => {
+            const hashedPwd = await bcrypt.hash(body.password, 10);
+
+            const member = await tx.member.create({
+                data: {
+                    name: body.name,
+                    email: body.email,
+                    address: body.email,
+                    mobile: body.mobile,
+                }
+            });
+
+            const shakhaMember = await tx.shakhaMember.create({
+                data: {
+                    shakhaId: shakhaId,
+                    memberId: member.id
+                }
+            });
+
+            const memberCred = await tx.memberCredential.create({
+                data: {
+                    userName: body.userName,
+                    password: hashedPwd,
+                    memberId: member.id
+                }
+            });
+
+            return { member, shakhaMember, memberCred };
+        });
+
+        var { member, shakhaMember, memberCred } = result;
+
+        sendSuccess(res, {
+            member, shakhaMember, memberCred
+        });
     }
 }

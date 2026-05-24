@@ -9,6 +9,7 @@ import { validate } from "../../../middlewares/validate";
 const router = Router();
 
 router.use(authenticate);
+router.get("/get/dashboard", asyncHandler(ShakhaController.getShakahData));
 router.get("/get/:id", asyncHandler(ShakhaController.get));
 router.get("/get", asyncHandler(ShakhaController.getAll));
 

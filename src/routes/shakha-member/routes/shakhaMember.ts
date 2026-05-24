@@ -9,7 +9,7 @@ import { AssignMemberRoleSchema } from "../schema/shakhaMember.schema";
 const router = Router();
 
 router.use(authenticate)
-router.get("/:id", asyncHandler(ShakhaMemberController.getShakhaMembers));
+router.get("/getShakhaMember", asyncHandler(ShakhaMemberController.getShakhaMembers));
 // router.get("/get/:id", asyncHandler(ShakhaMemberController.getByID));
 // router.get("/get", asyncHandler(ShakhaMemberController.getAll));
 

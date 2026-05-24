@@ -29,7 +29,7 @@ export class MemberRoleController {
         const memberRole = await prisma.memberRole.findFirst({
             where: {
                 roleId: body.roleId,
-                memberId: shakhaMember.id
+                shakhaMemberId: shakhaMember.id
             }
         });
 

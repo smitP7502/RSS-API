@@ -27,5 +27,6 @@ export const UpdateShakhaSchema = z.object({
     locationLong: z.string().optional(),
 }).strict();
 
+
 export type CreateShakha = z.infer<typeof CreateShakhaSchema>;
 export type UpdateShakha = z.infer<typeof UpdateShakhaSchema>;

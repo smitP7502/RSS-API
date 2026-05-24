@@ -81,7 +81,14 @@ model Role {
   id          Int     @id @default(autoincrement())
   name        String  @unique
   description String?
+  level       Int     @unique @default(0)
   isActive    Boolean @default(true)
+
+  canAddMember    Boolean @default(false)
+  canRemoveMember Boolean @default(false)
+  canEditMember   Boolean @default(false)
+  canAssignRole   Boolean @default(false)
+  canViewAll      Boolean @default(true)
 
   memberRole MemberRole[]
 
@@ -101,12 +108,7 @@ model MemberRole {
   assignedAt DateTime  @default(now())
   revokedAt  DateTime?
 
-  canAddMember    Boolean @default(false)
-  canRemoveMember Boolean @default(false)
-  canEditMember   Boolean @default(false)
-  canAssignRole   Boolean @default(false)
-  canViewAll      Boolean @default(true)
-  isActive        Boolean @default(true)
+  isActive Boolean @default(true)
 
   createdAt DateTime  @default(now())
   updatedAt DateTime? @updatedAt

@@ -262,45 +262,71 @@ export class ShakhaMemberController {
     //     );
     // };
     static getShakhaMembers = async (req: Request, res: Response) => {
-        const id = req.params.id as string;
+        const memberId = req.user?.id;
 
-        if (!id) {
-            throw new AppError("Shakha id is required!", 400);
+        if (!memberId) {
+            throw new AppError("User not found!", 401);
         }
 
-        const shakha = prisma.shakha.findFirst({
+        const shakhaMember = await prisma.shakhaMember.findFirst({
+            where: {
+                memberId: memberId,
+                isActive: true,
+            },
+        });
+
+        if (!shakhaMember) {
+            throw new AppError("Your are not member of any shakha!", 404);
+        }
+
+        const shakhaId = shakhaMember.shakhaId;
+
+        const members = await prisma.shakhaMember.findMany({
             where: {
                 isActive: true,
-                id: id
-            }
-        });
-
-        if (!shakha) {
-            throw new AppError("Shakah not found!", 404);
-        }
-
-        const shakahMembers = await prisma.shakhaMember.findMany({
-            where: {
-                shakhaId: id, isActive: true
+                shakhaId: shakhaId
             },
             select: {
-                member: {
+                memberRole: {
+                    where: {
+                        revokedAt: null,
+                    },
                     select: {
-                        name: true
+                        role: {
+                            select: {
+                                name: true
+                            }
+                        }
                     }
                 },
-                id: true,
+                member: {
+                    select: {
+                        id: true,
+                        name: true,
+                        mobile: true,
+                        address: true,
+                        email: true,
+                        dob: true,
+                    }
+                }
             }
         });
 
-        const data = shakahMembers.map(e => {
-            return {
-                id: e.id,
-                name: e.member.name
+        const data = members.map(e => {
+            var memberData = {
+                id: e.member.id,
+                name: e.member.name,
+                address: e.member.address,
+                email: e.member.email,
+                mobile: e.member.mobile,
+                role: e.memberRole.length === 0 ? null : e.memberRole[0].role.name,
+                dob: e.member.dob,
             };
+
+            return memberData;
         });
 
-        sendSuccess(res, data, "Shaka members fetched successfylly!");
+        sendSuccess(res, data, "Data fetched sucessesfully!");
     }
 
     static assingRole = async (req: Request, res: Response) => {
@@ -350,7 +376,7 @@ export class ShakhaMemberController {
             }
         });
 
-        sendSuccess(res, filterData(newMemberRole, ["canAddMember", "canAssignRole", "canEditMember", "canRemoveMember", "canViewAll"]), "Role assigned successfully!");
+        sendSuccess(res, filterData(newMemberRole,), "Role assigned successfully!");
     }
 
     static revokeRole = async (req: Request, res: Response) => {

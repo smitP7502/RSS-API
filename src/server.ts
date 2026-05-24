@@ -55,5 +55,5 @@ const PORT: number = Number(process.env.PORT) || 3000;
 const HOST: string = '0.0.0.0';
 
 app.listen(PORT, HOST, () => {
-    console.log(`Server is running on http://10.48.170.197:${PORT}`);
+    console.log(`Server is running on http://10.25.11.197:${PORT}`);
 });

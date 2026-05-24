@@ -16,24 +16,23 @@ export class AuthController {
         });
 
         if (!memberCred) {
-            console.log("d1");
             throw new AppError("Username or Password is wrong!", 401);
         }
 
         const match = await bcrypt.compare(body.password, memberCred.password);
 
         if (!match) {
-            console.log("d2");
             throw new AppError("Username or Password is wrong!", 401);
         }
-
-        const member = await prisma.member.findUnique({
-            where: { id: memberCred.memberId }
+        const shakhaMember = await prisma.shakhaMember.findFirst({
+            where: { isActive: true, memberId: memberCred.memberId },
         });
 
+        const member = await prisma.member.findFirst({
+            where: { id: memberCred.memberId, isActive: true }
+        });
 
-        if (!member) {
-            console.log("d3");
+        if (!shakhaMember || !member) {
             throw new AppError("Username or Password is wrong!", 401);
         }
 
@@ -46,10 +45,12 @@ export class AuthController {
             token,
             member: {
                 id: member.id,
+                shakhaId: shakhaMember.shakhaId,
                 userName: memberCred.userName,
                 name: member.name,
                 email: member.email,
-                isAdmin: member.systemRole === "ADMIN" ? 1 : 0
+                isAdmin: member.systemRole === "ADMIN" ? 1 : 0,
+                firstLogin: memberCred.firstLogin
             }
         }, "Login successfully!");
     }

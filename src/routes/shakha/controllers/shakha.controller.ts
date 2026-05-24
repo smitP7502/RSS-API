@@ -282,4 +282,73 @@ export class ShakhaController {
             "Successfully fetched shakha member roles!"
         );
     };
+
+    static getShakahData = async (req: Request, res: Response) => {
+        const memberId = req.user?.id;
+
+        if (!memberId) {
+            throw new AppError("Unauthorized", 401);
+        }
+
+        /// ------------------------------------------------------------
+        /// Check Member Exists
+        /// ------------------------------------------------------------
+
+        const member = await prisma.member.findFirst({
+            where: {
+                id: memberId,
+                isActive: true,
+            },
+        });
+
+        if (!member) {
+            throw new AppError("Member does not exist", 404);
+        }
+
+        /// ------------------------------------------------------------
+        /// Find Shakha Membership
+        /// ------------------------------------------------------------
+
+        const shakhaMember = await prisma.shakhaMember.findFirst({
+            where: {
+                memberId: memberId,
+                isActive: true,
+            },
+            include: {
+                shakha: {
+                    include: {
+                        shakhaMember: {
+                            where: {
+                                isActive: true,
+                            },
+                        },
+                    },
+                },
+            },
+        });
+
+        if (!shakhaMember || !shakhaMember.shakha) {
+            throw new AppError(
+                "You are not associated with any shakha!",
+                404
+            );
+        }
+
+        /// ------------------------------------------------------------
+        /// Prepare Response
+        /// ------------------------------------------------------------
+
+        const { shakha } = shakhaMember;
+
+        const { shakhaMember: members, ...rest } = shakha;
+
+        sendSuccess(
+            res,
+            {
+                ...filterData(rest),
+                noOfMember: members.length,
+            },
+            "Data fetched successfully!"
+        );
+    };
 }
